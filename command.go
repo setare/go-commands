@@ -1,4 +1,4 @@
-package microservice
+package commands
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/ory/viper"
-	"github.com/setare/microservice/logging"
+	"github.com/setare/go-commands/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -20,7 +20,7 @@ var cfgFile string
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $PWD/.microservice)")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -52,6 +52,8 @@ func initConfig() {
 
 // Execute starts the microservice based on its configuration.
 func Execute() {
+	defer logging.Logger.Sync()
+
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(EC_ROOTCMD_FAILED)
