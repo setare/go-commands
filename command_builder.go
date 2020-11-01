@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 
-	"github.com/setare/go-commands/logging"
 	signals "github.com/setare/go-os-signals"
 	"github.com/setare/services"
 	zapreporter "github.com/setare/services-reporter-zap"
@@ -88,9 +87,6 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 	cmd.Use = b.use
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		logger := b.logger
-		if logger != nil {
-			logger = logging.Logger
-		}
 		reporter := zapreporter.NewReporter(logger)
 
 		if b.retrierBuilder != nil {
