@@ -13,6 +13,7 @@ import (
 )
 
 type CommandFunc = func(*cobra.Command, []string)
+type CommandEFunc = func(*cobra.Command, []string) error
 
 type CmdBuilder interface {
 	Use(string) CmdBuilder
@@ -30,6 +31,7 @@ type cmdBuilder struct {
 	use            string
 	short          string
 	long           string
+	beforeRun      CommandEFunc
 	run            CommandFunc
 	logger         *zap.Logger
 	retrierBuilder *services.RetrierBuilder
@@ -53,6 +55,11 @@ func (builder *cmdBuilder) Short(short string) CmdBuilder {
 
 func (builder *cmdBuilder) Long(long string) CmdBuilder {
 	builder.long = long
+	return builder
+}
+
+func (builder *cmdBuilder) BeforeRun(beforeRun CommandEFunc) CmdBuilder {
+	builder.beforeRun = beforeRun
 	return builder
 }
 
@@ -85,7 +92,7 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 	b := *builder
 	cmd := &cobra.Command{}
 	cmd.Use = b.use
-	cmd.Run = func(cmd *cobra.Command, args []string) {
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		logger := b.logger
 		reporter := zapreporter.NewReporter(logger)
 
@@ -95,8 +102,11 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 			}
 		}
 
-		if b.run != nil {
-			b.run(cmd, args)
+		if b.beforeRun != nil {
+			err := b.beforeRun(cmd, args)
+			if err != nil {
+				return err
+			}
 		}
 
 		starter := services.NewStarter(
@@ -111,6 +121,10 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 			os.Exit(1)
 		}
 
+		if b.run != nil {
+			b.run(cmd, args)
+		}
+
 		listener := builder.signalListener
 		if listener == nil {
 			listener = signals.NewListener(os.Interrupt)
@@ -121,6 +135,8 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 			logger.Error("error listening signals:", zap.Error(err))
 			os.Exit(3)
 		}
+
+		return nil
 	}
 	return cmd
 }
