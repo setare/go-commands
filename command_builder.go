@@ -23,20 +23,22 @@ type CmdBuilder interface {
 	WithLogger(*zap.Logger) CmdBuilder
 	WithRetrierBuilder(*services.RetrierBuilder) CmdBuilder
 	WithSignalListener(signals.Listener) CmdBuilder
+	DisableSignalListener(bool) CmdBuilder
 	Run(CommandFunc) CmdBuilder
 	Build() *cobra.Command
 }
 
 type cmdBuilder struct {
-	use            string
-	short          string
-	long           string
-	beforeRun      CommandEFunc
-	run            CommandFunc
-	logger         *zap.Logger
-	retrierBuilder *services.RetrierBuilder
-	signalListener signals.Listener
-	services       []services.Service
+	use                    string
+	short                  string
+	long                   string
+	beforeRun              CommandEFunc
+	run                    CommandFunc
+	logger                 *zap.Logger
+	retrierBuilder         *services.RetrierBuilder
+	signalListenerDisabled bool
+	signalListener         signals.Listener
+	services               []services.Service
 }
 
 func CommandBuilder() CmdBuilder {
@@ -83,6 +85,11 @@ func (builder *cmdBuilder) WithRetrierBuilder(retrierBuilder *services.RetrierBu
 	return builder
 }
 
+func (builder *cmdBuilder) DisableSignalListener(disabled bool) CmdBuilder {
+	builder.signalListenerDisabled = disabled
+	return builder
+}
+
 func (builder *cmdBuilder) WithSignalListener(listener signals.Listener) CmdBuilder {
 	builder.signalListener = listener
 	return builder
@@ -123,6 +130,11 @@ func (builder *cmdBuilder) Build() *cobra.Command {
 
 		if b.run != nil {
 			b.run(cmd, args)
+		}
+
+		// Skip listening signal
+		if b.signalListenerDisabled {
+			return nil
 		}
 
 		listener := builder.signalListener
